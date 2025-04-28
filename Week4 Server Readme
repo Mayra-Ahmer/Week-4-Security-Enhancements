@@ -1,0 +1,72 @@
+// server.js
+
+const express = require('express');
+const rateLimit = require('express-rate-limit');
+const cors = require('cors');
+const helmet = require('helmet');
+
+const app = express();
+
+// Rate Limiting Middleware
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(limiter);
+
+// CORS Middleware
+const corsOptions = {
+  origin: 'https://trusted-domain.com',
+  methods: 'GET,POST,PUT,DELETE',
+};
+app.use(cors(corsOptions));
+
+// API Key Authentication Middleware
+const apiKey = '12345-mysecure-api-key';
+app.use((req, res, next) => {
+  const userApiKey = req.headers['x-api-key'];
+  if (userApiKey && userApiKey === apiKey) {
+    next();
+  } else {
+    res.status(401).json({ error: 'Unauthorized' });
+  }
+});
+
+// Helmet Security Headers
+app.use(helmet());
+
+// Helmet Content Security Policy (CSP)
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "trusted-cdn.com"],
+        objectSrc: ["'none'"],
+        upgradeInsecureRequests: [],
+      },
+    },
+  })
+);
+
+// Helmet Strict-Transport-Security (HSTS)
+app.use(
+  helmet.hsts({
+    maxAge: 63072000, // 2 years
+    includeSubDomains: true,
+    preload: true,
+  })
+);
+
+// Example API Route
+app.get('/', (req, res) => {
+  res.send('Hello, this API is secured with Rate Limiting, CORS, API Keys, CSP, and HSTS!');
+});
+
+// Start the Server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running securely on port ${PORT}`);
+});
